@@ -1,0 +1,12 @@
+---
+title: "Capstone"
+output: html_document
+---
+
+```{r}
+
+pubmed_data <- readRDS("pubmed.rds")
+autoreg_data <- readRDS("autoregulatoryDB.rds")
+
+
+```
