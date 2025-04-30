@@ -1,0 +1,38 @@
+# install with conda env create -f environment.yml 
+name: 'autoregulatory'
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+
+dependencies:
+  - python=3.10      
+  - ipykernel
+  - jupyterlab
+  - matplotlib
+  - pandas
+  - seaborn
+  - scikit-learn
+  - nltk
+  - spacy
+  - plotly
+  - ipywidgets
+  - jupyter-dash
+  - sentence-transformers
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pyreadr
+  - pip
+  - protobuf>=3.20,<5
+  - tqdm             
+  - nb_conda_kernels 
+
+  - pip:
+      - transformers 
+      - datasets     
+      - accelerate   
+      - torch-summary
+      - kaleido      
+      - pyppeteer    
+      - mglearn

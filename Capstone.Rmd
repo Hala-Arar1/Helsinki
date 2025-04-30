@@ -1,9 +1,0 @@
----
-title: "Capstone"
-output: html_document
----
-
-```{r}
-pubmed_data <- readRDS("data/pubmed.rds")
-autoreg_data <- readRDS("data/autoregulatoryDB.rds")
-```
