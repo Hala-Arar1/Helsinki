@@ -46,7 +46,6 @@ We merged these two datasets using the PMID as a shared key, resulting in a sing
 ![](images/figure1.png)
 :::
 
-
 Despite the large volume of data, only about 0.14% of the entries (1,823 rows) contain any regulatory term. Among these labeled entries, the majority (98%) are annotated with a single term, and just a small fraction (2%) are labeled with multiple regulatory types. As shown in @fig-term-distribution, the distribution of these terms is highly imbalanced: nearly half of the labeled entries mention the term *autophosphorylation*, while others like *autoubiquitination* and *autoinhibition* occur less frequently. We also found that many of these terms are explicitly mentioned in the original article metadata. Specifically, about 48% of labeled entries contain the term in the article title, and 47% include it in the abstract.
 
 ::: {#fig-term-distribution fig-cap="The distribution of regulatory terms is highly imbalanced, with 'autophosphorylation' accounting for nearly half of the labeled entries."}
@@ -56,7 +55,6 @@ Despite the large volume of data, only about 0.14% of the entries (1,823 rows) c
 ::: {#fig-abstract-lengths fig-cap="Most abstracts fall between 100 to 300 words, with a median length of 161 words, providing insight into the suitable input length for the model."}
 ![](images/figure3.png)
 :::
-
 
 Lastly, we examined the length of the abstracts to guide future modeling decisions. As illustrated in Figure @fig-abstract-lengths, the majority of abstracts are within this word count range, which provides insight into the suitable input length for the model.
 
@@ -78,15 +76,15 @@ Despite the advantages of using BERT listed above, the dataset consists of a var
 
 To ensure that this tool is both scientifically valid and practically useful, we evaluate its success based on quality, stakeholder usability, and future extensibility. When assessing our model, it is essential to use metrics that go beyond overall accuracy. This project aims to develop a tool that will help researchers identify autoregulation mechanisms in proteins from biomedical text. Given the highly imbalanced nature of our dataset, with terms such as autophosphorylation making up nearly half of all labeled entries, we focus on three key evaluation metrics: precision, recall, and micro F1-score. Precision captures how many of the predicted terms are actually correct. This is crucial because our partner's team will review model predictions directly. A high precision model minimizes false positives, ensuring researchers don’t waste time filtering out incorrect terms or risk misleading downstream analysis (@dowd2023).
 
-Recall, on the other hand, ensures that the model does not miss important terms. If the model only predicts terms it is confident about and misses autoregulation or autoinhibition when they are present, it limits the scientific value of the tool (@torgo2009). This would hinder the growth of the database and the discovery of new regulatory pathways. High recall ensures that the model captures a wide range of relevant annotations, aligning with the partner's goal of expanding the self-loop catalog through automated analysis (@torgo2009).
+Recall, on the other hand, ensures that the model does not miss important terms. If the model only predicts terms it is confident about and misses any type of autoregulation when they are present, it limits the scientific value of the tool (@torgo2009). This would hinder the growth of the database and the discovery of new regulatory pathways. High recall ensures that the model captures a wide range of relevant annotations, aligning with the partner's goal of expanding the self-loop catalog through automated analysis (@torgo2009).
 
 We selected the micro F1-score because it provides a better understanding of the model’s overall performance across all terms, rather than focusing solely on the most common ones (@takahashi2022). For example, a model that always predicts autophosphorylation for every abstract might achieve a high accuracy score but would fail to identify rare yet biologically significant terms like autoinduction or autophosphatase. The micro F1-score averages precision and recall across all predictions, weighting each prediction equally. This penalizes models that ignore minority terms, which is particularly important since researchers value rare self-loops just as much as the more common ones (@takahashi2022).
 
 ## Stakeholder
 
-These evaluation metrics are closely aligned with the priorities of our stakeholders. Dr. Jafari’s lab requires high recall and micro F1 to ensure that the tool can cover a broad range of biological pathways. This is essential for advancing research in systems pharmacology and drug development, as it allows the model to capture a wide variety of autoregulatory features. Researchers using the Shiny app will prioritize precision, as they will directly interact with the model’s predictions. A high precision ensures that they can trust the tool’s outputs, minimizing the need for manual verification and maximizing its utility in research applications.
+These evaluation metrics are closely aligned with the priorities of our stakeholders. The partner's lab requires high recall and micro F1 to ensure that the tool can cover a broad range of biological pathways. This is essential for advancing research in systems pharmacology and drug development, as it allows the model to capture a wide variety of autoregulatory features. Researchers using the Shiny app will prioritize precision, as they will directly interact with the model’s predictions. A high precision ensures that they can trust the tool’s outputs, minimizing the need for manual verification and maximizing its utility in research applications.
 
-For our team, these metrics guide the evaluation and comparison of different BERT model variants, helping us select the best approach for deployment. By focusing on micro F1, precision, and recall, we ensure that our model performs well not only on paper but also in real-world applications. The goal is for the model to reliably identify meaningful regulatory features, supporting the advancement of biomedical research and providing valuable insights into self-regulatory mechanisms within proteins.
+For our team, these metrics guide the evaluation and comparison of different BERT model variants, helping us select the best approach for deployment. By focusing on micro F1, precision, and recall, we ensure that our model performs well not only on training data but also in real-world applications. The goal is for the model to reliably predict meaningful regulatory features, supporting the advancement of biomedical research and providing valuable insights into self-regulatory mechanisms within proteins.
 
 # Timeline
 
@@ -102,7 +100,7 @@ The core of our work will happen here. We are fine-tuning baseline BERT models a
 
 **Late Week 6: Output Structuring and Prototyping**
 
-Once the best-performing model is selected, we will structure the predictions into a format that enables easy querying. Time permitting, we will develop a lightweight Shiny prototype to allow researchers to explore predictions interactively.
+Once the best-performing model is selected, we will structure the predictions into a format that enables easy querying. We will then develop a Shiny app which allows researchers to explore predictions interactively.
 
 **Week 7–8: Deliverables and Wrap-Up**
 
@@ -118,5 +116,4 @@ In summary, this proposal outlines the development of a machine learning tool to
 
 # References
 
-```{=latex}
-\printbibliography
+\`\`\`{=latex} \printbibliography
