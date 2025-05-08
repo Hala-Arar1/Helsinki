@@ -9,12 +9,14 @@ affiliation: "University of Helsinki"
 class: "DSCI-591: Capstone"
 mentor: "Mohieddin Jafari, Payman Nickchi"
 date: "May 9, 2025"
-output:
-  pdf_document:
+format:
+  pdf:
     fig-cap-location: bottom
-geometry: margin=1in
-fontsize: 12pt
-mainfont: "Times New Roman"
+    geometry: margin=1in
+    fontsize: 12pt
+    mainfont: "Times New Roman"
+    tbl-cap-location: top
+jupyter: autoregulatory
 bibliography: works_cited.bib
 csl: apa.csl
 header-includes:
@@ -36,29 +38,147 @@ Despite the crucial role that self-loops play in regulating cellular processes, 
 
 # Data Science Techniques
 
+```{python}
+#| label: setup
+#| echo: false
+#| warning: false
+#| output: false
+
+import os
+import pyreadr
+import pandas as pd
+from collections import Counter
+import matplotlib.pyplot as plt
+```
+
+```{python}
+#| label: data-processing
+#| echo: false
+#| warning: false
+#| output: false
+
+# read data
+data_dir = os.path.join("..", "data", "raw_data")
+
+result_pubmed = pyreadr.read_r(os.path.join(data_dir, "pubmed.rds"))
+df_pubmed = list(result_pubmed.values())[0]
+
+result_autoreg = pyreadr.read_r(os.path.join(data_dir, "autoregulatoryDB.rds"))
+df_autoreg = list(result_autoreg.values())[0]
+
+# merge datasets
+df_autoreg['PMID'] = df_autoreg['RX'].str.extract(r'PubMed=(\d+)')
+
+df_autoreg['PMID'] = df_autoreg['PMID'].astype(str)
+df_pubmed['PMID'] = df_pubmed['PMID'].astype(str)
+
+df_merged = pd.merge(df_autoreg[['AC', 'OS', 'Term_in_RP', 'Term_in_RT', 'Term_in_RC', 'PMID']], df_pubmed[['PMID', 'Title', 'Abstract']], on='PMID', how='left')
+
+# combine regulatory terms
+columns_to_keep = ['AC', 'OS', 'PMID', 'Title', 'Abstract', 'Term_in_RP', 'Term_in_RT', 'Term_in_RC']
+
+df_selected = df_merged[columns_to_keep].copy()
+
+def merge_terms(row):
+    cols = ['Term_in_RP', 'Term_in_RT', 'Term_in_RC']
+    terms = []
+
+    for col in cols:
+        val = row[col]
+        if pd.notna(val):
+            split_terms = [t.strip() for t in str(val).split(',') if t.strip()]
+            terms.extend(split_terms)
+
+    return ', '.join(sorted(set(terms))) if terms else ''
+
+
+df_selected['Terms'] = df_selected.apply(merge_terms, axis=1)
+
+# Clean up
+df_cleaned = df_selected.drop(columns=['Term_in_RP', 'Term_in_RT', 'Term_in_RC'])
+```
+
 ## Data Description
 
-To build a machine learning model that identifies biochemical regulatory features of proteins, our project relies on two primary datasets provided by Dr. Jafari. The first dataset, *pubmed.rds*, contains metadata from over 260,000 scientific articles, including PubMed IDs (PMIDs), titles, and abstracts. The second dataset, *autoregulatoryDB.rds*, consists of approximately 1.32 million protein annotations, many of which contain regulatory labels indicating potential self-regulation mechanisms such as *autophosphorylation* or *autoinhibition*.
+To build a machine learning model that identifies biochemical regulatory features of proteins, our project relies on two primary datasets provided by our partner. The first data frame contains metadata from over 260,000 scientific articles, including PubMed identification number (PMIDs), titles, and abstracts. The second data frame consists of approximately 1.32 million protein annotations, where 1,823 entries (0.14%) contain regulatory labels indicating potential self-regulation mechanisms such as *autophosphorylation* or *autoinhibition*.
 
-We merged these two datasets using the PMID as a shared key, resulting in a single dataset (@fig-dataset-structure) with 1,323,976 entries. From the merged data, we retained six essential columns: a protein accession identifier (AC), organism name (OS), PMID, title, abstract, and regulatory terms. The regulatory terms were originally spread across three separate columns: *Term_in_RP*, *Term_in_RT*, and *Term_in_RC*—depending on their source. For clarity and consistency, we combined these three columns into a single unified column named *Terms*, which contains the cleaned and deduplicated annotations for each entry.
+We merged these two datasets using the PMID as a shared key, resulting in a single dataset with 1,323,976 entries. From the merged data, we retained six essential columns: a protein accession identifier (AC), organism name (OS), PMID, title, abstract, and regulatory terms. The regulatory terms were originally spread across three separate columns: *Term_in_RP*, *Term_in_RT*, and *Term_in_RC*. For clarity and consistency, we combined these three columns into a single unified column named *Terms*, which contains the cleaned and deduplicated annotations for each entry.
 
-::: {#fig-dataset-structure fig-cap="The merged dataset contains 1,323,976 entries, with 0.14% of the rows containing labeled regulatory terms. These entries were analyzed for term frequency distribution and relevance."}
-![](images/figure1.png)
-:::
+```{python}
+#| label: display-data-structure
+#| echo: false
+#| warning: false
+#| output: true
+#| tbl-cap: "Final dataset structure"
+
+pd.set_option('display.max_colwidth', 15)
+pd.set_option('display.max_columns', 6)
+pd.set_option('display.width', 50)
+
+df_display = df_cleaned[df_cleaned['Terms'] != ''].head()
+display(df_display)
+```
+
+Despite the large volume of data, only about 0.14% of the entries (1,823 rows) contain any regulatory term. Among these labeled entries, the majority (98%) are annotated with a single term, and just a small fraction (2%) are labeled with multiple regulatory types. The distribution of these terms is highly imbalanced: nearly half of the labeled entries mention the term *autophosphorylation*, while others like *autoubiquitination* and *autoinhibition* occur less frequently. We also found that many of these terms are explicitly mentioned in the original article metadata. Specifically, about 48% of labeled entries contain the term in the article title, and 47% include it in the abstract.
+
+```{python}
+#| label: display-class-distribution
+#| echo: false
+#| warning: false
+#| output: true
+#| tbl-cap: "Class distribution"
+
+all_terms = [
+    term.strip()
+    for terms in df_cleaned['Terms']
+    if terms.strip() != ''
+    for term in terms.split(',')
+    if term.strip()
+]
+
+term_counts = Counter(all_terms)
+df_term_counts = pd.DataFrame(term_counts.items(), columns=['Term', 'Count']).sort_values(by='Count', ascending=False)
+
+total_terms = sum(term_counts.values())
+df_term_counts['Percent'] = df_term_counts['Count'] / total_terms * 100
+
+plt.figure(figsize=(8, 4.5))
+bars = plt.barh(df_term_counts['Term'], df_term_counts['Count'], color='steelblue', edgecolor='black')
+plt.gca().invert_yaxis()
+plt.xlabel("Count")
+plt.title("Term Frequency Distribution", fontsize=14)
+plt.xlim(0, df_term_counts['Count'].max() * 1.15)
 
 
-Despite the large volume of data, only about 0.14% of the entries (1,823 rows) contain any regulatory term. Among these labeled entries, the majority (98%) are annotated with a single term, and just a small fraction (2%) are labeled with multiple regulatory types. As shown in @fig-term-distribution, the distribution of these terms is highly imbalanced: nearly half of the labeled entries mention the term *autophosphorylation*, while others like *autoubiquitination* and *autoinhibition* occur less frequently. We also found that many of these terms are explicitly mentioned in the original article metadata. Specifically, about 48% of labeled entries contain the term in the article title, and 47% include it in the abstract.
+for bar, percent in zip(bars, df_term_counts['Percent']):
+    plt.text(bar.get_width() + 5, bar.get_y() + bar.get_height()/2,
+             f"{percent:.1f}%", va='center', fontsize=10)
 
-::: {#fig-term-distribution fig-cap="The distribution of regulatory terms is highly imbalanced, with 'autophosphorylation' accounting for nearly half of the labeled entries."}
-![](images/figure2.png)
-:::
-
-::: {#fig-abstract-lengths fig-cap="Most abstracts fall between 100 to 300 words, with a median length of 161 words, providing insight into the suitable input length for the model."}
-![](images/figure3.png)
-:::
+plt.tight_layout()
+plt.show()
+```
 
 
-Lastly, we examined the length of the abstracts to guide future modeling decisions. As illustrated in Figure @fig-abstract-lengths, the majority of abstracts are within this word count range, which provides insight into the suitable input length for the model.
+Lastly, we examined the length of the abstracts to guide future modeling decisions. As illustrated in figure below, the majority of abstracts are within this word count range, which provides insight into the suitable input length for the model.
+
+```{python}
+#| label: display-token-length
+#| echo: false
+#| warning: false
+#| output: true
+#| tbl-cap: "Token length distribution"
+
+abstract_words = df_cleaned['Abstract'].fillna('').apply(lambda x: len(x.split()))
+
+plt.figure(figsize=(8, 4.5))
+plt.hist(abstract_words, bins=50, alpha=0.7,
+         label='Abstract', color='steelblue', edgecolor='black')
+plt.xlabel("Word Count")
+plt.ylabel("Count")
+plt.title("Word Count Distribution of Abstract", fontsize=14)
+plt.tight_layout()
+plt.show()
+```
 
 \newpage
 
