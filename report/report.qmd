@@ -15,7 +15,7 @@ format:
     geometry: margin=1in
     fontsize: 12pt
     mainfont: "Times New Roman"
-    tbl-cap-location: top
+    tbl-cap-location: bottom
 jupyter: autoregulatory
 bibliography: works_cited.bib
 csl: apa.csl
@@ -124,7 +124,7 @@ Despite the large volume of data, only about 0.14% of the entries (1,823 rows) c
 #| echo: false
 #| warning: false
 #| output: true
-#| tbl-cap: "Class distribution"
+#| fig-cap: "Distribution of regulatory terms in the labeled dataset"
 
 all_terms = [
     term.strip()
@@ -140,7 +140,7 @@ df_term_counts = pd.DataFrame(term_counts.items(), columns=['Term', 'Count']).so
 total_terms = sum(term_counts.values())
 df_term_counts['Percent'] = df_term_counts['Count'] / total_terms * 100
 
-plt.figure(figsize=(8, 4.5))
+plt.figure(figsize=(10, 6))
 bars = plt.barh(df_term_counts['Term'], df_term_counts['Count'], color='steelblue', edgecolor='black')
 plt.gca().invert_yaxis()
 plt.xlabel("Count")
@@ -163,11 +163,11 @@ Lastly, we examined the length of the abstracts to guide future modeling decisio
 #| echo: false
 #| warning: false
 #| output: true
-#| tbl-cap: "Token length distribution"
+#| fig-cap: "Word count distribution of article abstracts"
 
 abstract_words = df_cleaned['Abstract'].fillna('').apply(lambda x: len(x.split()))
 
-plt.figure(figsize=(8, 4.5))
+plt.figure(figsize=(10, 6))
 plt.hist(abstract_words, bins=50, alpha=0.7,
          label='Abstract', color='steelblue', edgecolor='black')
 plt.xlabel("Word Count")
