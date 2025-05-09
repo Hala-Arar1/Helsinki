@@ -144,7 +144,6 @@ plt.figure(figsize=(10, 6))
 bars = plt.barh(df_term_counts['Term'], df_term_counts['Count'], color='steelblue', edgecolor='black')
 plt.gca().invert_yaxis()
 plt.xlabel("Count")
-plt.title("Term Frequency Distribution", fontsize=14)
 plt.xlim(0, df_term_counts['Count'].max() * 1.15)
 
 
@@ -172,7 +171,6 @@ plt.hist(abstract_words, bins=50, alpha=0.7,
          label='Abstract', color='steelblue', edgecolor='black')
 plt.xlabel("Word Count")
 plt.ylabel("Count")
-plt.title("Word Count Distribution of Abstract", fontsize=14)
 plt.tight_layout()
 plt.show()
 ```
