@@ -11,15 +11,20 @@ mentor: "Mohieddin Jafari, Payman Nickchi"
 date: "May 9, 2025"
 format:
   pdf:
+    toc: true             
+    toc-depth: 2           
     fig-cap-location: bottom
     geometry: margin=1in
     fontsize: 12pt
     mainfont: "Times New Roman"
-    tbl-cap-location: bottom
+    tbl-cap-location: top
 jupyter: autoregulatory
 bibliography: works_cited.bib
 csl: apa.csl
+
 ---
+
+
 
 # Executive Summary
 
