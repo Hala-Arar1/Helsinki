@@ -2,3 +2,5 @@
 .Rhistory
 .RData
 .Ruserdata
+data/processed/
+src/model/best_model.pt
