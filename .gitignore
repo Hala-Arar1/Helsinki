@@ -2,5 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
+.DS_Store
 data/processed/
 src/model/best_model.pt
