@@ -31,7 +31,7 @@ def main():
     df_merged = pd.merge(df_autoreg, df_pubmed, on='PMID', how='left')
 
     # Select relevant columns
-    columns_to_keep = ['AC', 'OS', 'PMID', 'Title', 'Abstract', 'Term_in_RP', 'Term_in_RT', 'Term_in_RC']
+    columns_to_keep = ['AC', 'PMID', 'Title', 'Abstract', 'Term_in_RP', 'Term_in_RT', 'Term_in_RC']
     df_selected = df_merged[columns_to_keep].copy()
 
     # Merge terms
