@@ -16,7 +16,11 @@ def load_data():
     """
     print("Step 1: Loading data from RDS files")
     # Define the absolute path to the data directory
-    data_dir = '/Users/halao/Desktop/Helsinki/data/raw'
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.abspath(os.path.join(current_dir, '..', '..'))
+    
+    # Define data directories using absolute paths
+    data_dir = os.path.join(project_root, "data", "raw")
     
     # Load pubmed data
     result_pubmed = pyreadr.read_r(os.path.join(data_dir, "pubmed.rds"))
@@ -245,13 +249,17 @@ def save_processed_data(final_data):
     print("\nStep 7: Saving processed data")
     
     # Define the output directory
-    output_dir = os.path.join("data", "preprocessed")
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.abspath(os.path.join(current_dir, '..', '..'))
+    output_dir = os.path.join(project_root, "data", "processed")
+    
+    # Define the output path
+    output_path = os.path.join(output_dir, "shuffled_data.csv")
     
     # Ensure the directory exists
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     # Save the shuffled dataset to a CSV file
-    output_path = os.path.join(output_dir, "shuffled_data.csv")
     final_data.to_csv(output_path, index=False)
     
     print(f"Shuffled data has been saved to: {output_path}")

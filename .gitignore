@@ -3,5 +3,5 @@
 .RData
 .Ruserdata
 .DS_Store
-data/processed/
+data/processed/protein_autoregulatory_terms.csv
 src/model/best_model.pt
