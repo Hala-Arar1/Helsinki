@@ -5,4 +5,4 @@ Before start doing the model, please run `python src/data_processing/process_dat
 
 
 
-To get the shuffled data pleasre run `python src/data_processing/shuffle_data.py` first.
+To get the shuffled data pleasre run `python src/data_processing/shuffled_data.py` first.

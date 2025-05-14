@@ -31,27 +31,6 @@ def load_data():
     
     return df_pubmed, df_autoreg
 
-def check_missing_abstracts(df_pubmed):
-    """
-    Identify and check missing abstracts in PubMed data.
-    
-    Parameters:
-    -----------
-    df_pubmed : pandas.DataFrame
-        PubMed dataframe
-        
-    Returns:
-    --------
-    pandas.DataFrame
-        Subset with missing abstracts
-    """
-    print("\nChecking for missing abstracts in PubMed data")
-    missing_abstracts = df_pubmed['Abstract'].isna() | (df_pubmed['Abstract'].str.strip() == '')
-    missing_count = missing_abstracts.sum()
-    print(f"Total records with missing abstracts: {missing_count} ({missing_count/len(df_pubmed)*100:.2f}%)")
-    
-    return df_pubmed[missing_abstracts]
-
 def merge_datasets(df_pubmed, df_autoreg):
     """
     Extract PMID and merge PubMed and autoregulatory datasets.
@@ -195,10 +174,6 @@ def process_labels(df):
     
     # Save label classes for later use
     label_classes = mlb.classes_
-    label_counts = pd.Series(Y.sum(axis=0), index=label_classes).sort_values(ascending=False)
-    
-    print(f"Total number of unique terms: {len(label_classes)}")
-    print(f"Top 10 most frequent terms: {label_counts.head(10).to_dict()}")
     
     # Remove specific term if needed
     term_to_drop = "autophosphatase"
@@ -231,8 +206,6 @@ def create_balanced_dataset(df, ratio=2):
     # Consider both NaN and empty strings as unlabeled
     df_labeled = df[(df['Terms'].notna()) & (df['Terms'] != '')].reset_index(drop=True)
     df_unlabeled = df[(df['Terms'].isna()) | (df['Terms'] == '')].reset_index(drop=True)
-    print(f"Labeled data shape: {df_labeled.shape}")
-    print(f"Unlabeled data shape: {df_unlabeled.shape}")
     
     # Shuffle the labeled and unlabeled datasets
     df_labeled = df_labeled.sample(frac=1, random_state=42).reset_index(drop=True)
@@ -257,14 +230,7 @@ def create_balanced_dataset(df, ratio=2):
     # Final shuffle
     final_data = final_data.sample(frac=1, random_state=42).reset_index(drop=True)
     
-    # Final dataset summary
-    labeled_count = sum((final_data['Terms'].notna()) & (final_data['Terms'] != ''))
-    unlabeled_count = len(final_data) - labeled_count
-    print(f"Final dataset shape: {final_data.shape}")
-    print(f"Number of labeled samples: {labeled_count}")
-    print(f"Number of unlabeled samples: {unlabeled_count}")
-    print(f"Ratio of unlabeled to labeled: {unlabeled_count / labeled_count:.2f}:1")
-    
+
     return final_data
 
 def save_processed_data(final_data):
@@ -299,8 +265,6 @@ def main():
     # Step 1: Load data
     df_pubmed, df_autoreg = load_data()
     
-    # Optional: Check missing abstracts
-    missing_abstracts_df = check_missing_abstracts(df_pubmed)
     
     # Step 2: Merge datasets
     df_selected = merge_datasets(df_pubmed, df_autoreg)
