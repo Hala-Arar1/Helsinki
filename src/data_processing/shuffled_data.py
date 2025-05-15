@@ -16,7 +16,11 @@ def load_data():
     """
     print("Step 1: Loading data from RDS files")
     # Define the absolute path to the data directory
-    data_dir = '/Users/halao/Desktop/Helsinki/data/raw'
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.abspath(os.path.join(current_dir, '..', '..'))
+    
+    # Define data directories using absolute paths
+    data_dir = os.path.join(project_root, "data", "raw")
     
     # Load pubmed data
     result_pubmed = pyreadr.read_r(os.path.join(data_dir, "pubmed.rds"))
@@ -245,13 +249,17 @@ def save_processed_data(final_data):
     print("\nStep 7: Saving processed data")
     
     # Define the output directory
-    output_dir = os.path.join("data", "preprocessed")
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.abspath(os.path.join(current_dir, '..', '..'))
+    output_dir = os.path.join(project_root, "data", "processed")
+    
+    # Define the output path
+    output_path = os.path.join(output_dir, "shuffled_data.csv")
     
     # Ensure the directory exists
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     # Save the shuffled dataset to a CSV file
-    output_path = os.path.join(output_dir, "shuffled_data.csv")
     final_data.to_csv(output_path, index=False)
     
     print(f"Shuffled data has been saved to: {output_path}")
@@ -281,6 +289,29 @@ def main():
     # Step 6: Create balanced dataset
     final_data = create_balanced_dataset(df_cleaned, ratio=2)
     
+    # ★ Step 6.5: **NEW** — Binarize multi-labels on the balanced set
+    print("\nStep 6.5: Binarizing multi-labels on balanced data")
+    final_data['Term_list'] = final_data['Terms'].apply(
+        lambda x: [t.strip() for t in str(x).split(',') if t.strip()]
+    )
+    mlb = MultiLabelBinarizer()
+    Y2 = mlb.fit_transform(final_data['Term_list'])
+    label_classes2 = list(mlb.classes_)
+    
+    # remove 'autophosphatase' if present
+    if 'autophosphatase' in label_classes2:
+        idx = label_classes2.index('autophosphatase')
+        print("Removing extremely rare term: autophosphatase")
+        Y2 = np.delete(Y2, idx, axis=1)
+        del label_classes2[idx]
+    
+    # append binary-label columns
+    labels_df = pd.DataFrame(Y2, columns=label_classes2)
+    final_data = pd.concat([final_data.reset_index(drop=True), labels_df], axis=1)
+    print("Balanced set now has label matrix shape:", Y2.shape)
+    
+
+
     # Step 7: Save processed data
     save_processed_data(final_data)
     
