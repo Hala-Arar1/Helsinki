@@ -5,4 +5,4 @@
 .DS_Store
 data/processed/protein_autoregulatory_terms.csv
 data/processed/shuffled_10_data.csv
-src/model/best_model.pt
+src/model/
