@@ -289,6 +289,29 @@ def main():
     # Step 6: Create balanced dataset
     final_data = create_balanced_dataset(df_cleaned, ratio=2)
     
+    # ★ Step 6.5: **NEW** — Binarize multi-labels on the balanced set
+    print("\nStep 6.5: Binarizing multi-labels on balanced data")
+    final_data['Term_list'] = final_data['Terms'].apply(
+        lambda x: [t.strip() for t in str(x).split(',') if t.strip()]
+    )
+    mlb = MultiLabelBinarizer()
+    Y2 = mlb.fit_transform(final_data['Term_list'])
+    label_classes2 = list(mlb.classes_)
+    
+    # remove 'autophosphatase' if present
+    if 'autophosphatase' in label_classes2:
+        idx = label_classes2.index('autophosphatase')
+        print("Removing extremely rare term: autophosphatase")
+        Y2 = np.delete(Y2, idx, axis=1)
+        del label_classes2[idx]
+    
+    # append binary-label columns
+    labels_df = pd.DataFrame(Y2, columns=label_classes2)
+    final_data = pd.concat([final_data.reset_index(drop=True), labels_df], axis=1)
+    print("Balanced set now has label matrix shape:", Y2.shape)
+    
+
+
     # Step 7: Save processed data
     save_processed_data(final_data)
     
