@@ -70,7 +70,7 @@ def consolidate_terms(df):
 
 def clean_text_data(df):
     """
-    Clean and preprocess text data.
+    Clean and preprocess text data, including term normalization.
     """
     print("\nStep 4: Cleaning text data")
     
@@ -85,6 +85,29 @@ def clean_text_data(df):
         text = re.sub(r'[^\x00-\x7F]+', ' ', text)
         return text
     
+    def normalize_terms(terms):
+        if pd.isna(terms) or terms == '':
+            return terms
+            
+        normalization_rules = {
+            'autocatalytic': 'autocatalysis',
+            'autoinhibitory': 'autoinhibition',
+            'autoregulatory': 'autoregulation',
+            'autoinducer': 'autoinduction'
+        }
+        
+        normalized_terms = []
+        for term in terms.split(','):
+            term = term.strip().lower()
+            normalized_term = normalization_rules.get(term, term)
+            normalized_terms.append(normalized_term)
+            
+        return ', '.join(sorted(set(normalized_terms)))
+    
+    # First normalize the Terms
+    df['Terms'] = df['Terms'].apply(normalize_terms)
+    
+    # Then create Text_combined
     df['Text_combined'] = df['Title'].apply(preprocess_text) + " " + df['Abstract'].apply(preprocess_text)
     print(f"Cleaned dataset shape: {df.shape}")
     return df
@@ -99,20 +122,169 @@ def remove_autophosphatase_term(df):
 
 def create_test_set(df, random_seed=42):
     """
-    Create a test set with 10 labeled and 10 unlabeled samples.
+    Create a test set with specific requirements:
+    Total 20 samples:
+    - 15 labeled samples:
+      - 5 samples with terms in text (all if_contain_keyterm=1):
+        * 3 single-term samples with different terms
+        * 2 multiple-terms samples
+      - 10 samples without terms in text:
+        * Each findable single term appears at least once
+        * Remaining samples must be multiple terms
+    - 5 unlabeled samples
     """
     print("\nStep 6: Creating test set")
-    labeled_data = df[(df['Terms'].notna()) & (df['Terms'] != '')]
-    unlabeled_data = df[(df['Terms'].isna()) | (df['Terms'] == '')]
     
-    labeled_test = labeled_data.sample(n=min(10, len(labeled_data)), random_state=random_seed)
-    unlabeled_test = unlabeled_data.sample(n=min(10, len(unlabeled_data)), random_state=random_seed)
+    def check_terms_in_text(row):
+        if pd.isna(row['Terms']) or pd.isna(row['Text_combined']):
+            return 0
+        terms = [term.strip() for term in row['Terms'].split(',')]
+        return 1 if any(term.lower() in row['Text_combined'].lower() for term in terms) else 0
     
-    test_set = pd.concat([labeled_test, unlabeled_test])
+    def get_term_count(terms_str):
+        if pd.isna(terms_str) or terms_str == '':
+            return 0
+        return len([t for t in terms_str.split(',') if t.strip()])
+    
+    def get_terms(terms_str):
+        if pd.isna(terms_str) or terms_str == '':
+            return set()
+        return {t.strip() for t in terms_str.split(',') if t.strip()}
+    
+    # Split into labeled and unlabeled data
+    labeled_data = df[(df['Terms'].notna()) & (df['Terms'] != '')].copy()
+    unlabeled_data = df[(df['Terms'].isna()) | (df['Terms'] == '')].copy()
+    
+    # Add term presence indicator and term count for labeled data
+    labeled_data['if_contain_keyterm'] = labeled_data.apply(check_terms_in_text, axis=1)
+    labeled_data['term_count'] = labeled_data['Terms'].apply(get_term_count)
+    labeled_data['terms_set'] = labeled_data['Terms'].apply(get_terms)
+    
+    # Get all unique terms and separate single terms
+    all_terms = set()
+    single_terms = set()
+    for _, row in labeled_data.iterrows():
+        terms = row['terms_set']
+        all_terms.update(terms)
+        if len(terms) == 1:
+            single_terms.update(terms)
+    
+    # Split data based on term presence in text
+    terms_present = labeled_data[labeled_data['if_contain_keyterm'] == 1]
+    terms_absent = labeled_data[labeled_data['if_contain_keyterm'] == 0]
+    
+    # First select 5 samples with terms in text
+    # 1. Select 3 single-term samples with different terms
+    single_term_present = terms_present[terms_present['term_count'] == 1]
+    if len(single_term_present) < 3:
+        raise ValueError(f"Insufficient single-term samples with terms in text. Need at least 3")
+    
+    # Group samples by their terms
+    term_groups = {}
+    for _, row in single_term_present.iterrows():
+        term = next(iter(row['terms_set']))  # Get the single term
+        if term not in term_groups:
+            term_groups[term] = []
+        term_groups[term].append(row)
+    
+    # Check if we have enough different terms
+    if len(term_groups) < 3:
+        raise ValueError(f"Insufficient different single terms in samples with terms in text. Need at least 3, but only found {len(term_groups)}")
+    
+    # Select one sample from each of 3 different terms
+    selected_terms = list(term_groups.keys())[:3]
+    selected_present_rows = []
+    for term in selected_terms:
+        # Randomly select one sample for this term
+        samples = term_groups[term]
+        selected_sample = pd.DataFrame([samples[0] if len(samples) == 1 else samples[np.random.randint(len(samples))]])
+        selected_present_rows.append(selected_sample)
+    
+    selected_present = pd.concat(selected_present_rows)
+    selected_present['if_contain_keyterm'] = 1
+    
+    # 2. Select 2 multiple-terms samples
+    multi_term_present = terms_present[terms_present['term_count'] > 1]
+    if len(multi_term_present) < 2:
+        raise ValueError(f"Insufficient multiple-terms samples with terms in text. Need at least 2")
+    additional_present = multi_term_present.sample(n=2, random_state=random_seed)
+    additional_present['if_contain_keyterm'] = 1  # All samples with terms in text should have if_contain_keyterm=1
+    selected_present = pd.concat([selected_present, additional_present])
+    
+    # Now select 10 samples without terms in text
+    # 1. First try to get one sample for each single term
+    selected_absent_samples = []
+    covered_terms = set()
+    
+    # Try to get one sample for each single term
+    for term in single_terms:
+        term_samples = terms_absent[
+            (terms_absent['Terms'].str.contains(term, na=False)) &
+            (terms_absent['term_count'] == 1)  # Only single-term samples
+        ]
+        if not term_samples.empty:
+            # Select sample that hasn't been used yet
+            unused_samples = term_samples[~term_samples['PMID'].isin([s['PMID'] for s in selected_absent_samples])]
+            if not unused_samples.empty:
+                selected_sample = unused_samples.iloc[0]
+                selected_absent_samples.append(selected_sample)
+                covered_terms.add(term)
+    
+    # Report which single terms were not covered
+    uncovered_terms = single_terms - covered_terms
+    
+    # Convert to DataFrame
+    selected_absent_df = pd.DataFrame(selected_absent_samples) if selected_absent_samples else pd.DataFrame()
+    
+    # 2. Fill remaining slots with multiple-terms samples
+    remaining_needed = 10 - len(selected_absent_df)
+    if remaining_needed > 0:
+        multi_term_absent = terms_absent[
+            (terms_absent['term_count'] > 1) &  # Multiple terms
+            (~terms_absent['PMID'].isin(selected_absent_df['PMID']))  # Not already selected
+        ]
+        if len(multi_term_absent) < remaining_needed:
+            raise ValueError(f"Insufficient multiple-terms samples without terms in text. Need {remaining_needed} more")
+        additional_absent = multi_term_absent.sample(n=remaining_needed, random_state=random_seed)
+        selected_absent_df = pd.concat([selected_absent_df, additional_absent])
+    
+    # Select unlabeled samples
+    unlabeled_sample = unlabeled_data.sample(n=5, random_state=random_seed)
+    unlabeled_sample['if_contain_keyterm'] = 0
+    
+    # Combine all samples
+    test_set = pd.concat([selected_absent_df, selected_present, unlabeled_sample])
+    
+    # Clean up and reorder columns to ensure if_contain_keyterm is after Abstract
+    all_columns = df.columns.tolist()
+    abstract_index = all_columns.index('Abstract')
+    
+    # Create the new column order
+    reordered_columns = all_columns[:abstract_index + 1]  # Columns up to and including Abstract
+    reordered_columns.append('if_contain_keyterm')  # Add if_contain_keyterm after Abstract
+    reordered_columns.extend([col for col in all_columns[abstract_index + 1:] if col != 'if_contain_keyterm'])  # Add remaining columns
+    
+    # Reorder the columns
+    test_set = test_set[reordered_columns]
+    
+    # Save test set
     output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data', 'processed', "test_data.csv")
     test_set.to_csv(output_path, index=False)
+    
+    print(f"\nTest set created with:")
+    print(f"- 15 labeled samples:")
+    print(f"  - 5 samples with terms in text (all if_contain_keyterm=1):")
+    print(f"    * 3 single-term samples with terms: {', '.join(selected_terms)}")
+    print(f"    * 2 multiple-terms samples")
+    print(f"  - 10 samples without terms in text:")
+    if uncovered_terms:
+        print(f"    Note: Could not find samples without terms in text for these single terms: {', '.join(sorted(uncovered_terms))}")
+    print(f"    * {len(selected_absent_samples)} single-term samples")
+    print(f"    * {10 - len(selected_absent_samples)} multiple-terms samples")
+    print(f"- 5 unlabeled samples")
     print(f"Test set saved to {output_path}")
     
+    # Return the remaining data
     return df.drop(test_set.index)
 
 def create_balanced_dataset(df, ratio=2, random_seed=None, batch_number=None):
@@ -203,7 +375,7 @@ def save_processed_data(processed_df):
     
     output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data', 'processed')
     os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "shuffled_10_data.csv")
+    output_path = os.path.join(output_dir, "train_data.csv")
     
     processed_df.to_csv(output_path, index=False)
     print(f"Processed data saved to {output_path}")
