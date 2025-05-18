@@ -1,8 +1,0 @@
-.Rproj.user
-.Rhistory
-.RData
-.Ruserdata
-.DS_Store
-data/processed/train_data.csv
-src/model/
-notebooks/model/
