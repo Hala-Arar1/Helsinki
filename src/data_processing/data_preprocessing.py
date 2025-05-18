@@ -346,13 +346,13 @@ def create_balanced_dataset(df, ratio=2, random_seed=None, batch_number=None):
     
     return balanced_df
 
-def create_multiple_shuffled_datasets(df, n_shuffles=10, ratio=2):
+def create_multiple_shuffled_datasets(df, n_shuffles=5, ratio=2):
     """
     Create multiple shuffled datasets with different random seeds.
     """
     print("\nStep 7: Creating multiple shuffled datasets")
     
-    seeds = [12345, 67890, 24680, 13579, 98765, 43210, 11111, 33333, 55555, 77777]
+    seeds = [12345, 67890, 24680, 13579, 98765]
     all_shuffled_datasets = []
     
     for batch_idx, seed in enumerate(seeds[:n_shuffles], 1):
@@ -395,7 +395,7 @@ def main():
     df_for_shuffling = create_test_set(df_no_autophos)
     
     # Create and save multiple shuffled datasets
-    shuffled_data = create_multiple_shuffled_datasets(df_for_shuffling, n_shuffles=10, ratio=2)
+    shuffled_data = create_multiple_shuffled_datasets(df_for_shuffling, n_shuffles=5, ratio=2)
     save_processed_data(shuffled_data)
     
     print("\nPipeline completed successfully!")
