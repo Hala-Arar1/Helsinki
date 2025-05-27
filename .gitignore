@@ -7,3 +7,5 @@ src/model/
 notebooks/model/
 /data/processed/train_data.csv
 /data/processed/shuffled_10_data.csv
+build/
+dist/
