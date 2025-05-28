@@ -67,13 +67,14 @@ ui <- fluidPage(
     column(
       width = 8,
       fluidRow(
+        column(4, textInput("protein_name", "Protein Name", placeholder = "Search protein...")),
         column(4, selectInput("journal", "Journal", choices = c("All", sort(unique(na.omit(df$Journal)))), selected = "All")),
-        column(4, selectInput("is_related", "Is Related to Autoregulatory", choices = c("All", sort(unique(na.omit(df$`Is Related to Autoregulatory`)))), selected = "All")),
-        column(4, selectInput("type", "Autoregulatory Type", choices = c("All", sort(unique(na.omit(df$`Autoregulatory Type`)))), selected = "All"))
+        column(4, selectInput("is_related", "Is Related to Autoregulatory", choices = c("All", sort(unique(na.omit(df$`Is Related to Autoregulatory`)))), selected = "All"))
       ),
       fluidRow(
+        column(4, selectInput("type", "Autoregulatory Type", choices = c("All", sort(unique(na.omit(df$`Autoregulatory Type`)))), selected = "All")),
         column(4, selectInput("polarity", "Polarity", choices = c("All", sort(unique(na.omit(df$Polarity)))), selected = "All")),
-        column(8, dateRangeInput("date_range", "Date Published",
+        column(4, dateRangeInput("date_range", "Date Published",
                                  start = min(df$`Date Published`, na.rm = TRUE),
                                  end = max(df$`Date Published`, na.rm = TRUE)))
       ),
@@ -94,6 +95,7 @@ server <- function(input, output, session) {
   
   # Reset Filters
   observeEvent(input$reset_filters, {
+    updateTextInput(session, "protein_name", value = "")
     updateSelectInput(session, "journal", selected = "All")
     updateSelectInput(session, "is_related", selected = "All")
     updateSelectInput(session, "type", selected = "All")
@@ -129,6 +131,10 @@ server <- function(input, output, session) {
       result <- result %>%
         filter(`Date Published` >= input$date_range[1],
                `Date Published` <= input$date_range[2])
+    }
+    
+    if (input$protein_name != "") {
+      result <- result %>% filter(grepl(input$protein_name, `Protein Name`, ignore.case = TRUE))
     }
     
     # searchbox

@@ -32,7 +32,7 @@ if (all(is.na(preview_df$AC))) {
   preview_df$AC <- paste0("AC", sprintf("%04d", seq_len(nrow(preview_df))))
 }
 if (all(is.na(preview_df$OS))) {
-  preview_df$OS <- sample(c("Homo sapiens", "Escherichia coli", "Saccharomyces cerevisiae", "Arabidopsis thaliana"),
+  preview_df$OS <- sample(c("Homo sapiens", "Escherichia coli", "Saccharomyces cerevisiae", "Arabidopsis thaliana"), 
                           nrow(preview_df), replace = TRUE)
 }
 if (all(is.na(preview_df$Journal))) {
@@ -53,7 +53,6 @@ df <- preview_df[, required_cols]
 # UI
 ui <- fluidPage(
   useShinyjs(),
-  
   tags$head(
     tags$style(HTML("
       #search {
@@ -90,20 +89,19 @@ ui <- fluidPage(
     column(
       width = 8,
       fluidRow(
+        column(4, textInput("protein_name", "Protein Name", placeholder = "Search protein...")),
         column(4, selectInput("journal", "Journal", choices = c("All", sort(unique(na.omit(df$Journal)))), selected = "All")),
-        column(4, selectInput("is_related", "Is Related to Autoregulatory", choices = c("All", sort(unique(na.omit(df$`Is Related to Autoregulatory`)))), selected = "All")),
-        column(4, selectInput("type", "Autoregulatory Type", choices = c("All", sort(unique(na.omit(df$`Autoregulatory Type`)))), selected = "All"))
+        column(4, selectInput("is_related", "Is Related to Autoregulatory", choices = c("All", sort(unique(na.omit(df$`Is Related to Autoregulatory`)))), selected = "All"))
       ),
       fluidRow(
+        column(4, selectInput("type", "Autoregulatory Type", choices = c("All", sort(unique(na.omit(df$`Autoregulatory Type`)))), selected = "All")),
         column(4, selectInput("polarity", "Polarity", choices = c("All", sort(unique(na.omit(df$Polarity)))), selected = "All")),
-        column(8, dateRangeInput("date_range", "Date Published",
+        column(4, dateRangeInput("date_range", "Date Published",
                                  start = min(df$`Date Published`, na.rm = TRUE),
                                  end = max(df$`Date Published`, na.rm = TRUE)))
       ),
-      fluidRow(
-        column(8),
-        column(4, actionButton("reset_filters", "Reset Filters", class = "btn-warning"))
-      )
+      br(),
+      actionButton("reset_filters", "Reset Filters", class = "btn-warning")
     ),
     column(
       width = 4,
@@ -117,13 +115,14 @@ ui <- fluidPage(
 # Server
 server <- function(input, output, session) {
   
-  # Dark Mode
+  # Toggle Dark Mode
   observeEvent(input$toggle_dark, {
     runjs("document.body.classList.toggle('dark-mode');")
   })
   
   # Reset Filters
   observeEvent(input$reset_filters, {
+    updateTextInput(session, "protein_name", value = "")
     updateSelectInput(session, "journal", selected = "All")
     updateSelectInput(session, "is_related", selected = "All")
     updateSelectInput(session, "type", selected = "All")
@@ -134,7 +133,7 @@ server <- function(input, output, session) {
     updateTextAreaInput(session, "search", value = "")
   })
   
-  # data filtering
+  # Filtering Logic
   filtered_data <- reactive({
     result <- df
     
@@ -158,6 +157,9 @@ server <- function(input, output, session) {
         filter(`Date Published` >= input$date_range[1],
                `Date Published` <= input$date_range[2])
     }
+    if (input$protein_name != "") {
+      result <- result %>% filter(grepl(input$protein_name, `Protein Name`, ignore.case = TRUE))
+    }
     if (input$search != "") {
       result <- result %>%
         filter(grepl(input$search, Title, ignore.case = TRUE) |
@@ -167,6 +169,7 @@ server <- function(input, output, session) {
     return(result)
   })
   
+  # Render Table
   output$result_table <- renderDT({
     datatable(
       filtered_data(),
