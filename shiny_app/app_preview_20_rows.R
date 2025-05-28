@@ -1,13 +1,12 @@
-# === Load Packages ===
 library(shiny)
 library(DT)
 library(dplyr)
 library(readr)
 
-# === Load CSV Data ===
+# Load CSV Data
 preview_df <- read.csv("../data/raw/pubmed_preview_20.csv", stringsAsFactors = FALSE)
 
-# === Placeholder: 完整字段结构 ===
+# Placeholder
 required_cols <- c(
   "Protein Name", "AC", "OS", "PMID", "Title", "Abstract", "Journal", "Authors",
   "Date Published", "Is Related to Autoregulatory", "Autoregulatory Type", "Polarity"
@@ -23,7 +22,7 @@ if ("PubDate" %in% colnames(preview_df)) {
   preview_df$`Date Published` <- preview_df$PubDate
 }
 
-# === Mock values for UI control fields ===
+# Mock values for UI control fields
 set.seed(123)
 if (all(is.na(preview_df$`Protein Name`))) {
   preview_df$`Protein Name` <- paste("Protein", seq_len(nrow(preview_df)))
@@ -50,7 +49,7 @@ if (all(is.na(preview_df$Polarity))) {
 
 df <- preview_df[, required_cols]
 
-# === UI ===
+# UI
 ui <- fluidPage(
   tags$head(
     tags$style(HTML("
@@ -90,10 +89,10 @@ ui <- fluidPage(
   DTOutput("result_table")
 )
 
-# === Server ===
+# Server
 server <- function(input, output, session) {
   
-  # Reset Filters 按钮逻辑
+  # Reset Filters
   observeEvent(input$reset_filters, {
     updateSelectInput(session, "journal", selected = "All")
     updateSelectInput(session, "is_related", selected = "All")
@@ -105,7 +104,7 @@ server <- function(input, output, session) {
     updateTextAreaInput(session, "search", value = "")
   })
   
-  # 数据过滤逻辑
+  # 
   filtered_data <- reactive({
     result <- df
     
@@ -122,7 +121,7 @@ server <- function(input, output, session) {
       result <- result %>% filter(Polarity == input$polarity)
     }
     
-    # 应用日期范围过滤
+    # date filter
     if (!is.null(input$date_range) &&
         !any(is.na(input$date_range)) &&
         input$date_range[1] != "" &&
@@ -132,7 +131,7 @@ server <- function(input, output, session) {
                `Date Published` <= input$date_range[2])
     }
     
-    # 搜索标题或摘要
+    # searchbox
     if (input$search != "") {
       result <- result %>%
         filter(grepl(input$search, Title, ignore.case = TRUE) |
@@ -142,7 +141,7 @@ server <- function(input, output, session) {
     return(result)
   })
   
-  # 渲染数据表格
+  # table
   output$result_table <- renderDT({
     datatable(
       filtered_data(),
@@ -174,5 +173,5 @@ server <- function(input, output, session) {
 }
 
 
-# === Run App ===
+# Run App
 shinyApp(ui, server)
