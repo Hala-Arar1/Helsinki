@@ -11,22 +11,19 @@ knitr::opts_chunk$set(echo = TRUE)
 ## 
 
 ```{r}
-data <- readRDS("data/raw/pubmed.rds")
+data <- readRDS("C:/Users/35159/Desktop/591/Helsinki/data/raw/pubmed.rds")
 head(data)
 ```
 
 ```{r}
-# Load required packages
 library(xml2)
 library(httr)
 
-# Month name to number
 month_lookup <- c(
   Jan = "01", Feb = "02", Mar = "03", Apr = "04", May = "05", Jun = "06",
   Jul = "07", Aug = "08", Sep = "09", Oct = "10", Nov = "11", Dec = "12"
 )
 
-# Function to fetch publication date
 fetch_pubdate <- function(pmid) {
   url <- paste0(
     "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi",
@@ -49,11 +46,9 @@ fetch_pubdate <- function(pmid) {
   return(NA)
 }
 
-# Load data
-data <- readRDS("data/raw/pubmed.rds")
+data <- readRDS("C:/Users/35159/Desktop/591/Helsinki/data/raw/pubmed.rds")
 data$PubDate <- NA
 
-# Loop through all rows
 for (i in seq_len(nrow(data))) {
   pmid <- data$PMID[i]
   pubdate <- fetch_pubdate(pmid)
@@ -62,7 +57,6 @@ for (i in seq_len(nrow(data))) {
   Sys.sleep(0.34)
 }
 
-# Save result
 saveRDS(data, file = "data/raw/pubmed.rds")
 cat("Done.\n")
 ```

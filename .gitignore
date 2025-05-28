@@ -2,6 +2,7 @@
 .Rhistory
 .RData
 .RDataTmp
+.RDataTmp1
 .Ruserdata
 .DS_Store
 src/model/
