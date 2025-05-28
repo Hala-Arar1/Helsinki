@@ -1,0 +1,79 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-05-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+data <- readRDS("data/raw/pubmed.rds")
+
+class(data)
+str(data)
+head(data)
+```
+
+```{r}
+missing_title <- sum(is.na(data$Title) | data$Title == "")
+missing_abstract <- sum(is.na(data$Abstract) | data$Abstract == "")
+
+cat("Missing Title count: ", missing_title, "\n")
+cat("Missing Abstract count: ", missing_abstract, "\n")
+```
+
+```{r}
+data <- readRDS("data/raw/pubmed.rds")
+
+missing_pmid <- data$PMID[is.na(data$Abstract) | data$Abstract == ""]
+
+writeLines(as.character(missing_pmid), "missing_pmids.txt")
+```
+
+```{r}
+library(xml2)
+library(httr)
+library(dplyr)
+
+fetch_abstract <- function(pmid) {
+  url <- paste0(
+    "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi",
+    "?db=pubmed&id=", pmid,
+    "&retmode=xml"
+  )
+  res <- tryCatch(read_xml(GET(url)), error = function(e) NA)
+
+  if (!is.na(res)) {
+    abstract <- xml_text(xml_find_first(res, "//AbstractText"))
+    return(abstract)
+  } else {
+    return(NA)
+  }
+}
+
+data <- readRDS("data/raw/pubmed.rds")
+
+missing_idx <- which(is.na(data$Abstract) | data$Abstract == "")
+
+for (i in seq_along(missing_idx)) {
+  row <- missing_idx[i]
+  pmid <- data$PMID[row]
+
+  abs_text <- fetch_abstract(pmid)
+
+  if (!is.na(abs_text)) {
+    data$Abstract[row] <- abs_text
+    cat(sprintf("[%d/%d] Filled PMID: %s\n", i, length(missing_idx), pmid))
+  } else {
+    cat(sprintf("[%d/%d] Not found PMID: %s\n", i, length(missing_idx), pmid))
+  }
+
+  Sys.sleep(0.34)
+}
+
+dir.create("data/raw", recursive = TRUE, showWarnings = FALSE)
+saveRDS(data, file = "data/raw/pubmed.rds")
+cat("All abstract filling tasks completed. File saved.\n")
+```
