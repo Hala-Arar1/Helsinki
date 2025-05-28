@@ -380,6 +380,59 @@ def save_processed_data(processed_df):
     processed_df.to_csv(output_path, index=False)
     print(f"Processed data saved to {output_path}")
 
+def append_ai_generated_samples_to_test():
+    """
+    Append AI-generated examples with known Terms and Polarity to the test set.
+    """
+    print("\nStep 9: Appending AI-generated examples to test set")
+
+    ai_data = [
+        ("The transcription factor binds to its own promoter region.", "autoregulation", "neutral"),
+        ("The enzyme activates itself through conformational change.", "autoactivation", "positive"),
+        ("The protein phosphorylates itself on a tyrosine residue.", "autophosphorylation", "positive"),
+        ("The protease cleaves itself to generate the active form.", "autocatalysis", "positive"),
+        ("The cell produces molecules that signal itself to change behavior.", "autoinduction", "positive"),
+        ("The receptor signals to reduce its own expression level.", "autoinhibition", "negative"),
+        ("Upon binding ligand, the receptor undergoes a conformational change that enables phosphorylation of its cytoplasmic domain.", "autophosphorylation", "positive"),
+        ("The transcription factor negatively controls expression of its own gene.", "autoregulation", "negative"),
+        ("The kinase domain transfers phosphate groups to residues within the same protein.", "autophosphorylation", "positive"),
+        ("This bacterial system uses cell-to-cell signaling to coordinate population behavior.", "autoinduction", "positive"),
+        ("The peptide recognizes and binds specifically to the same protein it was derived from.", "autofeedback", "neutral"),
+        ("The dimeric protein activates by cross-phosphorylation between the two identical subunits.", "autoactivation", "positive"),
+        ("AGPCRs uniquely contain large, self-proteolyzing extracellular regions.", "autocatalysis", "positive"),
+        ("GAIN domain-mediated self-cleavage is constitutive and produces two-fragment holoreceptors.", "autocatalysis", "positive"),
+        ("The self-repression function of IbpA is conserved in other γ-proteobacterial IbpAs.", "autoinhibition", "negative"),
+        ("A cationic residue-rich region is critical for the self-suppression activity.", "autoinhibition", "negative"),
+        ("We propose a negative feedback loop, in which sphingosine inhibits GBA2 activity.", "autoinhibition", "negative"),
+        ("DNA damage-induced activation of p53 initiates a negative-feedback loop which rapidly downregulates RAG1 levels.", "autoregulation", "negative")
+    ]
+
+    ai_df = pd.DataFrame(ai_data, columns=["Abstract", "Terms", "Polarity"])
+    ai_df["AC"] = "[AI-generated]"
+    ai_df["PMID"] = ["AI_" + str(i) for i in range(1, len(ai_df) + 1)]
+    ai_df["Title"] = ""
+    ai_df["Text_combined"] = ai_df["Title"] + " " + ai_df["Abstract"]
+    ai_df["if_contain_keyterm"] = 0  # Mark as not containing key terms
+
+    # Reorder columns to match test set and fill missing ones
+    test_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data', 'processed', 'test_data.csv')
+    df_test = pd.read_csv(test_path)
+
+    if "Polarity" not in df_test.columns:
+        df_test["Polarity"] = np.nan
+
+    # Ensure column order and fill NA for missing columns in ai_df
+    missing_cols = set(df_test.columns) - set(ai_df.columns)
+    for col in missing_cols:
+        ai_df[col] = np.nan
+    ai_df = ai_df[df_test.columns]
+
+    # Append and save
+    df_test_final = pd.concat([df_test, ai_df], ignore_index=True)
+    df_test_final.to_csv(test_path, index=False)
+    print(f"Appended {len(ai_df)} AI-generated samples to test set.")
+
+
 def main():
     """
     Main function to run the entire data processing pipeline.
@@ -397,8 +450,9 @@ def main():
     # Create and save multiple shuffled datasets
     shuffled_data = create_multiple_shuffled_datasets(df_for_shuffling, n_shuffles=5, ratio=2)
     save_processed_data(shuffled_data)
-    
+    append_ai_generated_samples_to_test()
     print("\nPipeline completed successfully!")
+
 
 if __name__ == "__main__":
     main()
