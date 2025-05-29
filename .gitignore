@@ -11,3 +11,4 @@ notebooks/model/
 /data/processed/shuffled_10_data.csv
 build/
 dist/
+.RDataTmp1
