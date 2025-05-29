@@ -1,0 +1,10 @@
+name: autoregulatory_viewer
+title:
+username: fiaaatlux
+account: fiaaatlux
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 14844946
+bundleId: 10360421
+url: https://fiaaatlux.shinyapps.io/autoregulatory_viewer/
+version: 1
