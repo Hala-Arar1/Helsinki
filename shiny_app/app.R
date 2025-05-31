@@ -1,14 +1,16 @@
-library(shiny)
-library(DT)
-library(dplyr)
-library(readr)
-library(shinyjs)
-library(htmltools)
+library(shiny)       # for building the interactive web app
+library(DT)          # for rendering interactive data tables
+library(dplyr)       # for data manipulation
+library(readr)       # for reading CSV files
+library(shinyjs)     # for JavaScript integration (e.g., toggle dark mode)
+library(htmltools)   # for safe HTML rendering
 
 # Load CSV Data
+# Read preprocessed CSV file with PubMed preview data
 preview_df <- read.csv("data/pubmed_preview_20.csv", stringsAsFactors = FALSE)
 
 # Placeholder
+# Ensure required columns exist; fill missing ones with NA
 required_cols <- c(
   "Protein Name", "AC", "OS", "PMID", "Title", "Abstract", "Journal", "Authors",
   "Date Published", "Is Related to Autoregulatory", "Autoregulatory Type", "Polarity"
@@ -20,12 +22,14 @@ for (col in required_cols) {
   }
 }
 
+# Rename publication date column
 if ("PubDate" %in% colnames(preview_df)) {
   preview_df$`Date Published` <- preview_df$PubDate
 }
 
 # Mock values for UI control fields
-set.seed(123)
+# Fill in missing values with mock or default data to avoid UI errors
+set.seed(123)  # ensure reproducibility
 if (all(is.na(preview_df$`Protein Name`))) {
   preview_df$`Protein Name` <- paste("Protein", seq_len(nrow(preview_df)))
 }
@@ -44,6 +48,7 @@ if (all(is.na(preview_df$Journal))) {
 }
 
 if (all(is.na(preview_df$Abstract))) {
+  # Generate placeholder abstracts if all are missing
   preview_df$Abstract <- replicate(nrow(preview_df), paste(
     "Autoregulatory mechanisms play a pivotal role in maintaining protein homeostasis within the cell.",
     "In this study, we examine a broad range of autoregulatory behaviors across multiple protein families,",
@@ -72,8 +77,10 @@ if (all(is.na(preview_df$Polarity))) {
 }
 
 # Final data frame to be used
+# Subset and format data to match UI expectations
 df <- preview_df[, required_cols]
 
+# Clean and Standardize Dates
 # Fix some missing value in Date Published
 df$`Date Published` <- preview_df$`Date Published`
 
@@ -92,10 +99,11 @@ df$`Date Published` <- ifelse(grepl("^\\d{4}$", df$`Date Published`),
 df$`Date Published` <- as.Date(df$`Date Published`, format = "%Y-%m-%d")
 
 
-# UI
+# Define UI
 ui <- fluidPage(
-  useShinyjs(),
+  useShinyjs(),  # enables JavaScript actions
   tags$head(
+    # Custom CSS styling for dark mode and resizable search box
     tags$style(HTML("
       #search {
         resize: both !important;
@@ -127,6 +135,7 @@ ui <- fluidPage(
   actionButton("toggle_dark", "🌗 Toggle Dark Mode", class = "btn-primary dark-toggle"),
   br(), br(),
   
+  # Search and Filter Controls
   fluidRow(
     column(
       width = 8,
@@ -151,12 +160,13 @@ ui <- fluidPage(
     )
   ),
   
+  # Display filtered table
   DTOutput("result_table")
 )
 
-# Server
+# Define Server Logic
 server <- function(input, output, session) {
-  # Set Default Date Range
+  # Save default date range for reset
   default_date_range <- range(df$`Date Published`, na.rm = TRUE)
   
   # Toggle Dark Mode
@@ -164,7 +174,7 @@ server <- function(input, output, session) {
     runjs("document.body.classList.toggle('dark-mode');")
   })
   
-  # Reset Filters
+  # Reset all filters to default state
   observeEvent(input$reset_filters, {
     updateTextInput(session, "protein_name", value = "")
     updateSelectInput(session, "journal", selected = "All")
@@ -181,6 +191,7 @@ server <- function(input, output, session) {
   filtered_data <- reactive({
     result <- df
     
+    # Apply filters
     if (input$journal != "All") {
       result <- result %>% filter(Journal == input$journal)
     }
@@ -197,6 +208,7 @@ server <- function(input, output, session) {
       result <- result %>% filter(Polarity == input$polarity)
     }
     
+    # Filter by date range
     if (!is.null(input$date_range)) {
       start_date <- input$date_range[1]
       end_date <- input$date_range[2]
@@ -213,16 +225,19 @@ server <- function(input, output, session) {
       }
     }
     
+    # Search by protein name (case-insensitive)
     if (input$protein_name != "") {
       result <- result %>% filter(grepl(input$protein_name, `Protein Name`, ignore.case = TRUE))
     }
     
+    # Search keywords in Title or Abstract
     if (input$search != "") {
       result <- result %>%
         filter(grepl(input$search, Title, ignore.case = TRUE) |
                  grepl(input$search, Abstract, ignore.case = TRUE))
     }
     
+    # Modal dialog to show full abstract on click
     observeEvent(input$show_full_abstract, {
       showModal(modalDialog(
         title = "Full Abstract",
@@ -236,7 +251,7 @@ server <- function(input, output, session) {
     return(result)
   })
   
-  # Render Table
+  # Render filtered table with abstract preview and expand button
   output$result_table <- renderDT({
     data <- filtered_data()
     
