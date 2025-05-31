@@ -1,3 +1,4 @@
+# Import required libraries for data processing
 import os
 import re
 import pandas as pd
@@ -7,6 +8,10 @@ import pyreadr
 def load_data():
     """
     Load data from RDS files.
+    
+    Returns:
+        - df_pubmed: DataFrame with PubMed data
+        - df_autoreg: DataFrame with autoregulatory data
     """
     print("Step 1: Loading data from RDS files")
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -26,7 +31,14 @@ def load_data():
 
 def merge_datasets(df_pubmed, df_autoreg):
     """
-    Extract PMID and merge PubMed and autoregulatory datasets.
+    Merge PubMed and autoregulatory datasets using PMID.
+    
+    Args:
+        df_pubmed: PubMed DataFrame
+        df_autoreg: Autoregulatory DataFrame
+    
+    Returns:
+        DataFrame with selected columns from both datasets
     """
     print("\nStep 2: Merging datasets")
     df_autoreg['PMID'] = df_autoreg['RX'].str.extract(r'PubMed=(\d+)')
@@ -44,7 +56,13 @@ def merge_datasets(df_pubmed, df_autoreg):
 
 def consolidate_terms(df):
     """
-    Merge terms from different columns into a single column.
+    Combine terms from multiple columns into a single column.
+    
+    Args:
+        df: Input DataFrame
+    
+    Returns:
+        DataFrame with combined terms in a single column
     """
     print("\nStep 3: Consolidating terms")
     
@@ -70,7 +88,13 @@ def consolidate_terms(df):
 
 def clean_text_data(df):
     """
-    Clean and preprocess text data, including term normalization.
+    Clean text and normalize terms in the dataset.
+    
+    Args:
+        df: Input DataFrame
+    
+    Returns:
+        DataFrame with cleaned text and normalized terms
     """
     print("\nStep 4: Cleaning text data")
     
@@ -114,7 +138,13 @@ def clean_text_data(df):
 
 def remove_autophosphatase_term(df):
     """
-    Remove 'autophosphatase' term from the Terms column.
+    Remove 'autophosphatase' from the Terms column.
+    
+    Args:
+        df: Input DataFrame
+    
+    Returns:
+        DataFrame without 'autophosphatase' term
     """
     print("\nStep 5: Removing autophosphatase term")
     df['Terms'] = df['Terms'].apply(lambda x: ', '.join([t for t in x.split(',') if t.strip() != 'autophosphatase']) if pd.notna(x) else x)
@@ -122,16 +152,18 @@ def remove_autophosphatase_term(df):
 
 def create_test_set(df, random_seed=42):
     """
-    Create a test set with specific requirements:
-    Total 20 samples:
-    - 15 labeled samples:
-      - 5 samples with terms in text (all if_contain_keyterm=1):
-        * 3 single-term samples with different terms
-        * 2 multiple-terms samples
-      - 10 samples without terms in text:
-        * Each findable single term appears at least once
-        * Remaining samples must be multiple terms
+    Create test set with specific sample requirements:
+    - 15 labeled samples
+      * 5 with terms in text
+      * 10 without terms in text
     - 5 unlabeled samples
+    
+    Args:
+        df: Input DataFrame
+        random_seed: Seed for random selection
+    
+    Returns:
+        Remaining DataFrame after test set creation
     """
     print("\nStep 6: Creating test set")
     
@@ -289,24 +321,16 @@ def create_test_set(df, random_seed=42):
 
 def create_balanced_dataset(df, ratio=2, random_seed=None, batch_number=None):
     """
-    Process a dataset to create a balanced dataset with a specified ratio of unlabeled to labeled data,
-    excluding PMIDs that appear in the test set.
+    Create balanced dataset with specified ratio of unlabeled to labeled samples.
     
-    Parameters:
-    -----------
-    df : pandas.DataFrame
-        The input DataFrame containing labeled and unlabeled data
-    ratio : int, default=2
-        The ratio of unlabeled to labeled samples in the final dataset
-    random_seed : int, optional
-        Random seed for reproducibility. If None, shuffling will be completely random.
-    batch_number : int, optional
-        Batch number for print messages. If None, won't show batch number.
-        
+    Args:
+        df: Input DataFrame
+        ratio: Ratio of unlabeled to labeled samples
+        random_seed: Seed for reproducibility
+        batch_number: Batch identifier
+    
     Returns:
-    --------
-    pandas.DataFrame
-        The balanced dataset with specified ratio of labeled to unlabeled samples
+        Balanced DataFrame
     """
     print(f"\nProcessing Batch {batch_number} with ratio {ratio} (random seed: {random_seed})")
     
@@ -348,7 +372,15 @@ def create_balanced_dataset(df, ratio=2, random_seed=None, batch_number=None):
 
 def create_multiple_shuffled_datasets(df, n_shuffles=5, ratio=2):
     """
-    Create multiple shuffled datasets with different random seeds.
+    Create multiple shuffled versions of the dataset.
+    
+    Args:
+        df: Input DataFrame
+        n_shuffles: Number of shuffled versions to create
+        ratio: Ratio of unlabeled to labeled samples
+    
+    Returns:
+        Combined DataFrame of all shuffled versions
     """
     print("\nStep 7: Creating multiple shuffled datasets")
     
@@ -382,7 +414,8 @@ def save_processed_data(processed_df):
 
 def append_ai_generated_samples_to_test():
     """
-    Append AI-generated examples with known Terms and Polarity to the test set.
+    Add AI-generated examples to the test set.
+    Each example has predefined terms and polarity values.
     """
     print("\nStep 9: Appending AI-generated examples to test set")
 
@@ -435,7 +468,14 @@ def append_ai_generated_samples_to_test():
 
 def main():
     """
-    Main function to run the entire data processing pipeline.
+    Run the complete data processing pipeline:
+    1. Load data
+    2. Merge datasets
+    3. Process terms
+    4. Clean text
+    5. Create test set
+    6. Generate training data
+    7. Save results
     """
     print("Starting data processing pipeline")
     
