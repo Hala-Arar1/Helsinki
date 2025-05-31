@@ -1,15 +1,31 @@
 ---
-title: "Untitled"
+title: "filling_missing_abstracts"
 output: html_document
 date: "2025-05-19"
 ---
+
+## Filling Missing Abstracts
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-data <- readRDS("data/raw/pubmed.rds")
+# ============================================================
+# Script: filling_missing_abstracts.R
+# Purpose: Retrieve and fill in missing abstracts in PubMed metadata
+# Input:   data/raw/pubmed.rds — Dataset with PMIDs and possibly missing abstracts
+# Output:  data/raw/pubmed.rds — Same dataset, with missing abstracts filled (if available)
+# Dependencies: xml2, httr, dplyr
+# ============================================================
+```
+
+```{r}
+# Load local project-aware file path utility
+library(here)
+
+# Load dataset containing PubMed IDs (PMID)
+data <- readRDS(here("data/raw/pubmed.rds"))
 
 class(data)
 str(data)
@@ -17,6 +33,7 @@ head(data)
 ```
 
 ```{r}
+# Count missing titles and abstracts
 missing_title <- sum(is.na(data$Title) | data$Title == "")
 missing_abstract <- sum(is.na(data$Abstract) | data$Abstract == "")
 
@@ -25,24 +42,37 @@ cat("Missing Abstract count: ", missing_abstract, "\n")
 ```
 
 ```{r}
-data <- readRDS("data/raw/pubmed.rds")
+data <- readRDS(here("data/raw/pubmed.rds"))
 
+# Extract PMIDs with missing abstracts
 missing_pmid <- data$PMID[is.na(data$Abstract) | data$Abstract == ""]
 
-writeLines(as.character(missing_pmid), "missing_pmids.txt")
+# Ensure output folder exists
+dir.create("data/processed", recursive = TRUE, showWarnings = FALSE)
+
+# Write missing PMIDs to file
+writeLines(as.character(missing_pmid), "data/processed/missing_pmids.txt")
 ```
 
 ```{r}
-library(xml2)
-library(httr)
-library(dplyr)
+library(xml2)   # for parsing PubMed API XML responses
+library(httr)   # for making HTTP requests
+library(dplyr)  # for data wrangling
 
+# ------------------------------------------------------------
+# Function: fetch_abstract
+# Purpose:  Retrieve abstract text from PubMed using PMID
+# Input:    pmid — PubMed ID as character or numeric
+# Output:   character string of abstract (or NA if not found)
+# ------------------------------------------------------------
 fetch_abstract <- function(pmid) {
   url <- paste0(
     "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi",
     "?db=pubmed&id=", pmid,
     "&retmode=xml"
   )
+  
+  # Attempt to fetch and parse abstract from API
   res <- tryCatch(read_xml(GET(url)), error = function(e) NA)
 
   if (!is.na(res)) {
@@ -53,8 +83,8 @@ fetch_abstract <- function(pmid) {
   }
 }
 
-data <- readRDS("data/raw/pubmed.rds")
-
+# Fill Missing Abstracts
+data <- readRDS(here("data/raw/pubmed.rds"))
 missing_idx <- which(is.na(data$Abstract) | data$Abstract == "")
 
 for (i in seq_along(missing_idx)) {
@@ -70,10 +100,13 @@ for (i in seq_along(missing_idx)) {
     cat(sprintf("[%d/%d] Not found PMID: %s\n", i, length(missing_idx), pmid))
   }
 
-  Sys.sleep(0.34)
+  Sys.sleep(0.34)  # NCBI API rate limits
 }
+```
 
+```{r}
+# Save Updated Dataset
 dir.create("data/raw", recursive = TRUE, showWarnings = FALSE)
 saveRDS(data, file = "data/raw/pubmed.rds")
-cat("All abstract filling tasks completed. File saved.\n")
+cat("✅ All abstract filling tasks completed. Updated file saved.\n")
 ```
