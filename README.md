@@ -5,3 +5,5 @@ To get the shuffled data - 10 batches version and the test dataset, please run `
 
 
 Shinyapp Demo Preview: https://fiaaatlux.shinyapps.io/autoregulatory_viewer/
+
+![ShinyApp Demo](assets/shinyapp_demo.gif)
