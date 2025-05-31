@@ -8,55 +8,99 @@ date: "2025-05-27"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## 
+## Retrieving Paper Publishing Date
 
 ```{r}
-data <- readRDS("C:/Users/35159/Desktop/591/Helsinki/data/raw/pubmed.rds")
+# ============================================================
+# Script: retrieving_publishing_date.R
+# Purpose: Retrieve missing publication dates for each PubMed PMID
+#          using API and append to dataset
+# Input:   data/raw/pubmed.rds — PubMed metadata with missing PubDate
+# Output:  data/raw/pubmed.rds — same file, now with PubDate column added
+# Dependencies: xml2, httr, here
+# Note: For now, this is for testing purpose only, since the retrieval 
+#       needs to be based on the predicted dataset
+# ============================================================
+```
+
+```{r}
+# Load local project-aware file path utility
+library(here)
+
+# Load dataset containing PubMed IDs (PMID)
+data <- readRDS(here("data/raw/pubmed.rds"))
+
+# Preview data structure to confirm presence of PMID column
 head(data)
 ```
 
 ```{r}
-library(xml2)
-library(httr)
+library(xml2)  # For parsing XML responses from NCBI
+library(httr)  # For making HTTP requests
 
+# Month abbreviation to numeric lookup table
 month_lookup <- c(
   Jan = "01", Feb = "02", Mar = "03", Apr = "04", May = "05", Jun = "06",
   Jul = "07", Aug = "08", Sep = "09", Oct = "10", Nov = "11", Dec = "12"
 )
 
+# ------------------------------------------------------------
+# Function: fetch_pubdate
+# Purpose:  Query PubMed API for publication date of a given PMID
+# Input:    pmid — a single PubMed ID (character or numeric)
+# Output:   a formatted string in "YYYY-MM-DD" format or NA if unavailable
+# ------------------------------------------------------------
 fetch_pubdate <- function(pmid) {
+  # Construct API URL for fetching article metadata
   url <- paste0(
     "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi",
     "?db=pubmed&id=", pmid, "&retmode=xml"
   )
+  
+  # Attempt to query and parse the response XML
   res <- tryCatch(read_xml(GET(url)), error = function(e) NA)
 
+  # Proceed only if API call succeeded
   if (!is.na(res)) {
     node <- xml_find_first(res, "//PubDate")
     if (!is.na(node)) {
       year  <- xml_text(xml_find_first(node, ".//Year"))
       month <- xml_text(xml_find_first(node, ".//Month"))
       day   <- xml_text(xml_find_first(node, ".//Day"))
+      
+      # Convert abbreviated month to numeric
       if (month %in% names(month_lookup)) {
         month <- month_lookup[month]
       }
+      
+      # Default missing components to "NA"
       return(paste(year, ifelse(month == "", "NA", month), ifelse(day == "", "NA", day), sep = "-"))
     }
   }
-  return(NA)
+  return(NA)  # If any part of the process fails, return NA
 }
 
-data <- readRDS("C:/Users/35159/Desktop/591/Helsinki/data/raw/pubmed.rds")
+data <- readRDS(here("data/raw/pubmed.rds"))
+
+# Initialize PubDate column with NA values
 data$PubDate <- NA
 
+# Loop through each row and retrieve publication date from API
 for (i in seq_len(nrow(data))) {
   pmid <- data$PMID[i]
   pubdate <- fetch_pubdate(pmid)
   data$PubDate[i] <- pubdate
+  
+  # Console feedback for tracking progress
   cat(sprintf("[%d/%d] PMID: %s | PubDate: %s\n", i, nrow(data), pmid, pubdate))
+  
+  # Respect NCBI's rate limit (~3 requests/sec)
   Sys.sleep(0.34)
 }
+```
 
-saveRDS(data, file = "data/raw/pubmed.rds")
+```{r}
+# Save updated dataset back to file
+saveRDS(data, file = here("data/raw/pubmed.rds"))
 cat("Done.\n")
 ```
