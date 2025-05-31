@@ -33,7 +33,7 @@ dependencies:
       - datasets     
       - accelerate   
       - torch-summary
-      - kaleido      
+      - kaleido       
       - pyppeteer    
       - mglearn
       - iterative-stratification
