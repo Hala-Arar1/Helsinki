@@ -12,8 +12,27 @@ preview_df <- read.csv("data/pubmed_preview_20.csv", stringsAsFactors = FALSE)
 # Placeholder
 # Ensure required columns exist; fill missing ones with NA
 required_cols <- c(
-  "AC", "Protein Name", "Gene Name", "OS", "PMID", "Title", "Abstract", "Journal", "Authors",
-  "Date Published", "Autoregulatory Type", "Polarity"
+  # Unique ID (combination of protein + paper)
+  "Protein-Paper ID",
+  
+  # Protein metadata
+  "AC",
+  "Protein Name",
+  "Gene Name",
+  "OS",
+  
+  # Publication metadata
+  "PMID",
+  "Title",
+  "Abstract",
+  "Journal",
+  "Authors",
+  "Date Published",
+  "Source",
+  
+  # Label info
+  "Autoregulatory Type",
+  "Polarity"
 )
 
 for (col in required_cols) {
@@ -30,6 +49,10 @@ if ("PubDate" %in% colnames(preview_df)) {
 # Mock values for UI control fields
 # Fill in missing values with mock or default data to avoid UI errors
 set.seed(123)  # ensure reproducibility
+if (!("Protein-Paper ID" %in% names(preview_df)) || all(is.na(preview_df$`Protein-Paper ID`))) {
+  preview_df$`Protein-Paper ID` <- paste(preview_df$`Protein Name`, preview_df$PMID, sep = "_")
+}
+
 if (all(is.na(preview_df$AC))) {
   preview_df$AC <- paste0("AC", sprintf("%04d", seq_len(nrow(preview_df))))
 }
@@ -49,6 +72,14 @@ if (all(is.na(preview_df$OS))) {
 
 if (all(is.na(preview_df$Journal))) {
   preview_df$Journal <- sample(c("Nature", "Science", "Cell Reports", "J. Bacteriol"), nrow(preview_df), replace = TRUE)
+}
+
+if (all(is.na(preview_df$Authors))) {
+  preview_df$Authors <- replicate(
+    nrow(preview_df),
+    paste(sample(c("Smith", "Johnson", "Lee", "Patel", "Zhang", "Garcia", "Nguyen", "Kumar"), 3, replace = FALSE),
+          collapse = ", ")
+  )
 }
 
 if (all(is.na(preview_df$Abstract))) {
@@ -76,6 +107,14 @@ if (all(is.na(preview_df$Polarity))) {
   preview_df$Polarity <- sample(c("positive", "neutral", "negative"), nrow(preview_df), replace = TRUE)
 }
 
+if (!("Source" %in% names(preview_df)) || all(is.na(preview_df$Source))) {
+  preview_df$Source <- sample(
+    c("UniProt", "Other DB", "Manual Upload"),
+    nrow(preview_df),
+    replace = TRUE
+  )
+}
+
 # Final data frame to be used
 # Subset and format data to match UI expectations
 df <- preview_df[, required_cols]
@@ -100,119 +139,170 @@ df$`Date Published` <- as.Date(df$`Date Published`, format = "%Y-%m-%d")
 
 
 # Define UI
-ui <- fluidPage(
-  useShinyjs(),
-  tags$head(
-    tags$style(HTML("
-      body {
-        background-color: #f9f9f9;
-      }
-      .header-section {
-        background-image: url('header_img.png');
-        background-size: 50% auto;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-color: #ffffff;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-top: 20px;
-        padding: 20px 30px;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      }
-      .app-title {
-        font-size: 48px;
-        font-weight: bold;
-        color: #2c3e50;
-        margin: 0;
-        display: flex;
-        align-items: center;
-      }
-      .app-title img {
-        height: 120px;
-        margin-right: 20px;
-      }
-      .header-logos {
-        display: flex;
-        gap: 20px;
-      }
-      .header-logos img {
-        height: 120px;
-      }
-      .filter-panel {
-        background-color: #ffffff;
-        padding: 20px;
-        border-radius: 8px;
-        margin: 20px 30px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      }
-      .btn-warning {
-        margin-top: 10px;
-      }
-      .dataTables_wrapper {
-        background-color: #ffffff;
-        padding: 10px;
-        border-radius: 8px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        margin: 0 30px 20px 30px;
-      }
-    "))
-  ),
-  
-  # Title and Logos Row
-  div(class = "header-section",
-      div(class = "app-title", img(src = "logo.png"), "SOORENA"),
-      div(class = "header-logos",
-          img(src = "logoHelsinki.png"),
-          img(src = "logoUBC.png"),
-          img(src = "logoJafariLab.png")
-      )
-  ),
-  
-  # Search and Filter Controls
-  div(class = "filter-panel",
-      fluidRow(
-        column(
-          width = 8,
-          fluidRow(
-            column(3, textInput("ac", "AC", placeholder = "Search AC...")),
-            column(3, textInput("protein_name", "Protein Name", placeholder = "Search protein...")),
-            column(3, textInput("gene_name", "Gene Name", placeholder = "Search gene...")),
-            column(3, selectInput("os", "OS", choices = c("All", sort(unique(na.omit(df$OS)))), multiple = TRUE, selected = "All"))
-          ),
-          fluidRow(
-            column(3, textInput("pmid", "PMID", placeholder = "Search PMID...")),
-            column(3, textInput("author", "Author", placeholder = "Search author...")),
-            column(3, selectInput("journal", "Journal", choices = c("All", sort(unique(na.omit(df$Journal)))), multiple = TRUE, selected = "All")),
-            column(3, dateRangeInput("date_range", "Date Published",
-                                     start = min(df$`Date Published`, na.rm = TRUE),
-                                     end = max(df$`Date Published`, na.rm = TRUE)))
-          ),
-          fluidRow(
-            column(3, selectInput("type", "Autoregulatory Type", choices = c("All", sort(unique(na.omit(df$`Autoregulatory Type`)))), multiple = TRUE, selected = "All")),
-            column(3, selectInput("polarity", "Polarity", choices = c("All", sort(unique(na.omit(df$Polarity)))), multiple = TRUE, selected = "All"))
-          )
-        ),
-        column(
-          width = 4,
-          textAreaInput("search", "Search Title / Abstract", placeholder = "Type or paste any text...", height = "120px"),
-          actionButton("reset_filters", "Reset Filters", class = "btn-warning")
-        )
-      )
-  ),
-  
-  # Download Button
-  div(style = "margin: 0 30px;",
-      downloadButton("download_csv", "Download CSV", class = "btn-primary mb-3")
-  ),
-  
-  # Display Table
-  div(style = "margin: 0 30px;",
-      DTOutput("result_table"))
+# Header UI reused across all tabs
+header_ui <- div(
+  class = "header-section",
+  div(class = "app-title", img(src = "logo.png"), "SOORENA"),
+  div(class = "header-logos",
+      img(src = "logoHelsinki.png"),
+      img(src = "logoUBC.png"),
+      img(src = "logoJafariLab.png")
+  )
 )
 
-
+# Define UI
+ui <- navbarPage(
+  title = NULL,
+  id = "main_nav",
+  
+  # Tab: Search and Main App Interface
+  tabPanel(
+    title = "Search",
+    fluidPage(
+      useShinyjs(),
+      tags$head(
+        tags$style(HTML("
+          body {
+            background-color: #f9f9f9;
+          }
+          .header-section {
+            background-image: url('header_img.png');
+            background-size: 50% auto;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 20px;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+          }
+          .app-title {
+            font-size: 48px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 0;
+            display: flex;
+            align-items: center;
+          }
+          .app-title img {
+            height: 120px;
+            margin-right: 20px;
+          }
+          .header-logos {
+            display: flex;
+            gap: 20px;
+          }
+          .header-logos img {
+            height: 120px;
+          }
+          .filter-panel {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+          }
+          .btn-warning {
+            margin-top: 10px;
+          }
+          .dataTables_wrapper {
+            background-color: #ffffff;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin: 0 30px 20px 30px;
+          }
+        "))
+      ),
+      
+      # Header section
+      header_ui,
+      
+      # Search and Filter Controls
+      div(class = "filter-panel",
+          fluidRow(
+            column(
+              width = 8,
+              fluidRow(
+                column(3, textInput("ac", "AC", placeholder = "Search AC...")),
+                column(3, textInput("protein_name", "Protein Name", placeholder = "Search protein...")),
+                column(3, textInput("gene_name", "Gene Name", placeholder = "Search gene...")),
+                column(3, selectInput("os", "OS", choices = c("All", sort(unique(na.omit(df$OS)))), multiple = TRUE, selected = "All"))
+              ),
+              fluidRow(
+                column(3, textInput("pmid", "PMID", placeholder = "Search PMID...")),
+                column(3, textInput("author", "Author", placeholder = "Search author...")),
+                column(3, selectInput("journal", "Journal", choices = c("All", sort(unique(na.omit(df$Journal)))), multiple = TRUE, selected = "All")),
+                column(3, dateRangeInput("date_range", "Date Published",
+                                         start = min(df$`Date Published`, na.rm = TRUE),
+                                         end = max(df$`Date Published`, na.rm = TRUE)))
+              ),
+              fluidRow(
+                column(3, selectInput("type", "Autoregulatory Type", choices = c("All", sort(unique(na.omit(df$`Autoregulatory Type`)))), multiple = TRUE, selected = "All")),
+                column(3, selectInput("polarity", "Polarity", choices = c("All", sort(unique(na.omit(df$Polarity)))), multiple = TRUE, selected = "All"))
+              )
+            ),
+            column(
+              width = 4,
+              textAreaInput("search", "Search Title / Abstract", placeholder = "Type or paste any text...", height = "120px"),
+              actionButton("reset_filters", "Reset Filters", class = "btn-warning")
+            )
+          )
+      ),
+      
+      # Download Button
+      div(style = "margin: 0 30px;",
+          downloadButton("download_csv", "Download CSV", class = "btn-primary mb-3")
+      ),
+      
+      # Display Table
+      div(style = "margin: 0 30px;",
+          DTOutput("result_table"))
+    )
+  ),
+  
+  # Tab: Statistics
+  tabPanel(
+    title = "Statistics",
+    fluidPage(
+      header_ui,
+      h2("Statistics"),
+    )
+  ),
+  
+  # Tab: Patch Notes
+  tabPanel(
+    title = "Patch Notes",
+    fluidPage(
+      header_ui,
+      h2("Patch Notes"),
+      DT::dataTableOutput("patch_notes_table")
+    )
+  ),
+  
+  # Tab: About Us
+  tabPanel(
+    title = "About Us",
+    fluidPage(
+      header_ui,
+      h2("Project Contributors"),
+      tags$ul(
+        tags$li("Alexandra Zhou – University of British Columbia"),
+        tags$li("Hala Arar – University of British Columbia"),
+        tags$li("Mingyang Zhang – University of British Columbia"),
+        tags$li("Zheng He – University of British Columbia"),
+      ),
+      h2("Mentor & Partner"),
+      tags$ul(
+        tags$li("Mohieddin Jafari – University of Helsinki (Partner)"), 
+        tags$li("Payman Nickchi – University of British Columbia (Mentor)")
+      )
+    )
+  ),
+)
 
 
 # Define Server Logic
@@ -408,6 +498,43 @@ server <- function(input, output, session) {
           Shiny.setInputValue('show_full_text', { field: field, text: text }, {priority: 'event'});
         });
       ")
+    )
+  })
+  
+  # Patch Notes Table Data
+  patch_notes_data <- data.frame(
+    Version = c("0.0.1", "0.0.2"),
+    Description = c(
+      paste(
+        "<ul>",
+        "<li>Shiny App Prototype</li>",
+        "</ul>"
+      ),
+      paste(
+        "<ul>",
+        "<li>App Nickname & Logo</li>",
+        "<li>Search Functionality Enhancement</li>",
+        "<li>UI Cleanup</li>",
+        "<li>Paper Source</li>",
+        "<li>Protein Accession Handling</li>",
+        "<li>Additional Tabs</li>",
+        "</ul>"
+      )
+    ),
+    Date = c("2025-05-29", "2025-06-01"),
+    stringsAsFactors = FALSE
+  )
+  
+  # Render Patch Notes Table
+  output$patch_notes_table <- DT::renderDataTable({
+    DT::datatable(
+      patch_notes_data,
+      options = list(
+        pageLength = 10,
+        autoWidth = TRUE
+      ),
+      escape = FALSE,   # <-- allow HTML rendering
+      rownames = FALSE
     )
   })
   
