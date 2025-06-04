@@ -465,17 +465,44 @@ def append_ai_generated_samples_to_test():
     df_test_final.to_csv(test_path, index=False)
     print(f"Appended {len(ai_df)} AI-generated samples to test set.")
 
+def create_additional_unlabeled_test(df_no_autophos, random_seed=42):
+    """
+    Create additional unlabeled test set with 40 samples
+    """
+    print("\nStep 10: Creating additional unlabeled test set")
+    
+    # Load existing test and train data PMIDs
+    test_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data', 'processed', "test_data.csv")
+    train_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data', 'processed', "train_data.csv")
+    
+    test_pmids = set(pd.read_csv(test_path)['PMID'].astype(str))
+    train_pmids = set(pd.read_csv(train_path)['PMID'].astype(str))
+    used_pmids = test_pmids.union(train_pmids)
+    
+    # Filter unlabeled data that's not in test or train
+    unlabeled_data = df_no_autophos[
+        (~df_no_autophos['PMID'].astype(str).isin(used_pmids)) & 
+        ((df_no_autophos['Terms'].isna()) | (df_no_autophos['Terms'] == ''))
+    ].copy()
+    
+    # Randomly select 40 samples
+    if len(unlabeled_data) < 40:
+        print(f"Warning: Only {len(unlabeled_data)} unlabeled samples available")
+        selected_data = unlabeled_data
+    else:
+        selected_data = unlabeled_data.sample(n=40, random_state=random_seed)
+    
+    # Save to CSV
+    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data', 'processed', "test_40_unlabeled.csv")
+    selected_data.to_csv(output_path, index=False)
+    
+    print(f"Created additional unlabeled test set with {len(selected_data)} samples")
+    print(f"Saved to: {output_path}")
+
 
 def main():
     """
-    Run the complete data processing pipeline:
-    1. Load data
-    2. Merge datasets
-    3. Process terms
-    4. Clean text
-    5. Create test set
-    6. Generate training data
-    7. Save results
+    Run the complete data processing pipeline
     """
     print("Starting data processing pipeline")
     
@@ -491,6 +518,10 @@ def main():
     shuffled_data = create_multiple_shuffled_datasets(df_for_shuffling, n_shuffles=5, ratio=2)
     save_processed_data(shuffled_data)
     append_ai_generated_samples_to_test()
+    
+    # Create additional unlabeled test set
+    create_additional_unlabeled_test(df_no_autophos)
+    
     print("\nPipeline completed successfully!")
 
 
