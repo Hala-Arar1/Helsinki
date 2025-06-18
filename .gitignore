@@ -12,3 +12,4 @@ notebooks/model/
 build/
 dist/
 .RDataTmp1
+/data/raw/prediction/df_sample_for_prediction_with_pubdate.csv
