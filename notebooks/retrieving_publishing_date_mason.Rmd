@@ -28,7 +28,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(here)
 
 # Load dataset containing PubMed IDs (PMID)
-data <- readRDS(here("data/raw/pubmed.rds"))
+data <- readRDS(here("data/raw/prediction/df_sample_for_prediction.Rds"))
 
 # Preview data structure to confirm presence of PMID column
 head(data)
@@ -80,7 +80,7 @@ fetch_pubdate <- function(pmid) {
   return(NA)  # If any part of the process fails, return NA
 }
 
-data <- readRDS(here("data/raw/pubmed.rds"))
+data <- readRDS(here("data/raw/prediction/df_sample_for_prediction.Rds"))
 
 # Initialize PubDate column with NA values
 data$PubDate <- NA
@@ -101,6 +101,8 @@ for (i in seq_len(nrow(data))) {
 
 ```{r}
 # Save updated dataset back to file
-saveRDS(data, file = here("data/raw/pubmed.rds"))
-cat("Done.\n")
+output_csv <- here("data/raw/prediction/df_sample_with_pubdate.csv")
+write_csv(data, output_csv)
+
+cat("Done. Output saved to: ", output_csv, "\n")
 ```
